@@ -9,7 +9,7 @@ modules = [osp.splitext(osp.basename(path))[0]
            for path in glob(osp.join(proj_dir, 'src/*.py'))]
 config = {
     'name': 'gpgedit',
-    'version': '0.0.1+u1',
+    'version': '0.0.1',
     'description': 'Edit gpg-encrypted file',
     'license': 'MIT',
     'author': 'Chew Boon Aik',
