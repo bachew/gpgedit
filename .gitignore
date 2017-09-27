@@ -1,0 +1,12 @@
+.*
+!.gitignore
+
+*.pyc
+__pycache__
+
+/bootstrap_config_test.py
+/build
+/dist
+/src/*.egg-info
+/tmp
+/gpgedit-py*

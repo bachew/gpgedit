@@ -1,0 +1,306 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+import errno
+import os
+import re
+import runpy
+import shutil
+import subprocess
+import sys
+from argparse import ArgumentParser
+from os import path as osp
+
+
+class main(object):
+    CONFIGURABLES = [
+        'python',
+        'venv_dir',
+        'bootstrap_requires',
+        'dev',
+        'pip_install_options',
+        'post_bootstrap',
+    ]
+    DEFAULT_PYTHON = 'python3'
+
+    def __init__(self):
+        self.project_dir = osp.dirname(osp.abspath(__file__))
+        self.project_name = osp.basename(self.project_dir)
+        self.bootstrap_requires = [
+            'pip>=9.0.1',  # pip should be the first
+            'setuptools>=36.0.1',
+            'wheel>=0.29.0'
+        ]
+        self.dev = True
+        self.pip_install_options = []
+        self.post_bootstrap = None
+
+        info('cd {!r}'.format(self.project_dir))
+        os.chdir(self.project_dir)
+
+        # Remove residue pyc to prevent phantom config, only Python 2 pyc got
+        # such issue, Python 3 __pycache__ is safe to hang around
+        self.remove_config_pyc()
+
+        self.load_config_module('bootstrap_config')
+        self.load_config_module('bootstrap_config_test')
+
+        self.remove_config_pyc()  # remove again to be clean
+
+        info()  # easier to read
+
+        args = self.parse_args()
+
+        if args.python:
+            self.python = args.python
+
+        if args.dev is not None:
+            self.dev = args.dev
+
+        if args.list_config:
+            for key in self.CONFIGURABLES:
+                info('{} = {!r}'.format(key, getattr(self, key)))
+            return
+
+        self.clean = args.clean
+
+        try:
+            self.update()
+        except subprocess.CalledProcessError:
+            # No need extra message, command usually fails with verbose error
+            raise SystemExit(1)
+        except BootstrapError as e:
+            print('ERROR:', e, file=sys.stderr)
+            raise SystemExit(1)
+
+    @property
+    def description(self):
+        if getattr(self, '_description', None):
+            return self._description
+
+        return (
+            'Bootstrap {} for development.'
+            ' For more info, go to https://github.com/bachew/mollusc').format(
+            self.project_name)
+
+    @description.setter
+    def description(self, value):
+        self._description = value
+
+    @property
+    def python(self):
+        return getattr(self, '_python', None) or self.DEFAULT_PYTHON
+
+    @python.setter
+    def python(self, value):
+        self._python = value
+
+    @property
+    def python_version(self):
+        cache = getattr(self, '_python_version_cache', {})
+
+        if self.python not in cache:
+            # Python 2.7 prints version to stderr
+            output = subprocess.check_output([self.python, '--version'],
+                                             stderr=subprocess.STDOUT)
+            output = output.decode(sys.stdout.encoding)
+            m = re.match(r'.*(\d+)\.(\d+)\.(\d+).*', output.strip())
+            cache[self.python] = int(m.group(1)), int(m.group(2)), int(m.group(3))
+
+        return cache[self.python]
+
+    @property
+    def venv_dir(self):
+        if getattr(self, '_venv_dir', None):
+            return self._venv_dir
+
+        version_str = '.'.join([str(c) for c in self.python_version])
+        venv_dir = osp.relpath(osp.join(self.project_dir, '{}-py{}'.format(self.project_name, version_str)))
+        return venv_dir
+
+    @venv_dir.setter
+    def venv_dir(self, value):
+        self._venv_dir = value
+
+    def load_config_module(self, mod_name):
+        mod_file = '{}.py'.format(mod_name)
+
+        try:
+            # Not using run_path() because in python<3.4 imported modules
+            # become None when calling POST_BOOTSTRAP
+            mod = runpy.run_module(mod_name)
+        except ImportError:
+            info('{}: file not found, skipped'.format(mod_file))
+            return
+
+        for key, value in mod.items():
+            if key in self.CONFIGURABLES:
+                setattr(self, key, value)
+
+        info('{}: OK'.format(mod_file))
+
+    def remove_config_pyc(self):
+        def rm(path):
+            try:
+                os.remove(path)
+            except OSError as e:
+                if e.errno == errno.ENOENT:
+                    pass  # OK if not exists
+                else:
+                    raise
+
+        rm('bootstrap_config.pyc')
+        rm('bootstrap_config_test.pyc')
+
+    def parse_args(self):
+        parser = ArgumentParser(description=self.description)
+
+        def add_flag(key, on_opt, on_help, off_opt, off_help):
+            if getattr(self, key):
+                on_default = ' (default)'
+                off_default = ''
+            else:
+                on_default = ''
+                off_default = ' (default)'
+
+            parser.add_argument(on_opt, action='store_true', help=on_help + on_default)
+            parser.add_argument(off_opt, action='store_true', help=off_help + off_default)
+
+        parser.add_argument('-p', dest='python',
+                            help='Python executable (default: {})'.format(self.python))
+
+        parser.add_argument('-d', dest='venv_dir',
+                            help='virtual environment directory (default: {})'.format(self.venv_dir))
+
+        def boolean(s):
+            s = s.lower()
+
+            if s in ('1', 'true', 'on', 'yes'):
+                return True
+
+            if s in ('0', 'false', 'off', 'no'):
+                return False
+
+            raise ValueError
+
+        parser.add_argument('--dev', type=boolean,
+                            help='development mode (default: {})'.format(int(bool(self.dev))))
+
+        parser.add_argument('-l', dest='list_config', action='store_true',
+                            help='just list configuration')
+        parser.add_argument('--clean', action='store_true',
+                            help='remove virtual environment before creating')
+        args = parser.parse_args()
+        return args
+
+    def update(self):
+        venv_dir = self.venv_dir
+
+        if self.clean and osp.exists(venv_dir):
+            info('Removing virtual environment {!r}'.format(venv_dir))
+            shutil.rmtree(venv_dir)
+
+        venv_updated = False
+
+        if not self.inside_venv():
+            info('Not inside virtual environment, create/updating one...')
+
+            if self.python_version < (3, 0, 0):
+                self.run_virtualenv(venv_dir)
+            else:
+                self.run(['python3', '-m', 'venv', venv_dir])
+
+            venv_updated = True
+
+        pip = osp.join(venv_dir, 'bin', 'pip') if venv_updated else 'pip'
+        pip_install = [pip, 'install']
+
+        if self.pip_install_options:
+            pip_install += list(self.pip_install_options)
+
+        for req in list(self.bootstrap_requires):
+            # Install one by one, order is important e.g. pip should be installed first
+            self.run(pip_install + [req])
+
+        if osp.exists('setup.py'):
+            if self.dev:
+                self.run(pip_install + ['-e', '.'])
+            else:
+                self.run(pip_install + ['.'])
+
+        if self.dev and osp.exists('requirements.txt'):
+            self.run(pip_install + ['-r', 'requirements.txt'])
+
+        if self.post_bootstrap:
+            kwargs = {
+                'dev': self.dev,
+                'venv_dir': venv_dir,
+            }
+            info('post_bootstrap', kwargs)
+
+            try:
+                work_dir = os.getcwd()
+                self.post_bootstrap(**kwargs)
+            finally:
+                os.chdir(work_dir)
+
+        if venv_updated:
+            info("Virtual environment created/updated, please run 'source {}' to activate it".format(
+                osp.relpath(osp.join(venv_dir, 'bin', 'activate'))))
+
+    def inside_venv(self):
+        sys_version = sys.version.lower()
+
+        if 'conda' in sys_version or 'continuum' in sys_version:
+            info("Inside Conda virtual environment")
+            # It is also not possible to create virtual environment inside Condo virtual environment
+            return True
+
+        base_prefix = getattr(sys, 'real_prefix', None) or getattr(sys, 'base_prefix', sys.prefix)
+
+        if base_prefix == sys.prefix:
+            return False
+
+        info('Inside virtual environment')
+        return True
+
+    def run(self, cmd):
+        cmdline = subprocess.list2cmdline(cmd)
+        info('run:', cmdline)
+
+        env = dict(os.environ)
+        # TODO: make this configurable, maybe can use --cache-dir option?
+        env['PIP_DOWNLOAD_CACHE'] = osp.expanduser('~/.pip/cache')
+
+        try:
+            subprocess.check_call(cmd, env=env)
+        except EnvironmentError as e:
+            if e.errno == errno.ENOENT:
+                raise BootstrapError('Command {!r} not found, did you install it?'.format(cmd[0]))
+
+            raise
+
+    def run_virtualenv(self, venv_dir):
+        cmd = ['virtualenv']
+
+        # In Debian 8, virtualenv gives "ImportError: cannot import name HashMissing"
+        # on existing virtual environment trying to reinstall pip
+        if osp.exists(osp.join(venv_dir, 'bin', 'pip')):
+            cmd.append('--no-pip')
+            cmd.append('--no-setuptools')
+
+        cmd.append(venv_dir)
+        self.run(cmd)
+
+
+class BootstrapError(Exception):
+    pass
+
+
+def info(*msg):
+    print(*msg)
+    sys.stdout.flush()
+
+
+if __name__ == '__main__':
+    main()
