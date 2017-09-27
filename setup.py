@@ -10,7 +10,7 @@ modules = [osp.splitext(osp.basename(path))[0]
 config = {
     'name': 'gpgedit',
     'version': '0.0.1',
-    'description': 'Edit gpg-encrypted file',
+    'description': 'GpgEdit lets you edit a gpg-encrypted file',
     'license': 'MIT',
     'author': 'Chew Boon Aik',
     'author_email': 'bachew@gmail.com',

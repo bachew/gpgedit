@@ -29,16 +29,13 @@ def main(filename):
     if suffix != GPG_SUFFIX:
         raise ClickException('Filename must end with .gpg')
 
-    edit_file = tempfile.mktemp(prefix=name + '.', suffix='', dir=SECURE_DIR)
-
-    with open(edit_file, 'w'):
-        pass  # just touch it
-
-    if osp.exists(filename):
-        echo_bold('Decrypting {!r} into {!r} for editing'.format(filename, edit_file))
-        decrypt(filename, edit_file)
+    _, edit_file = tempfile.mkstemp(prefix=name + '.', suffix='', dir=SECURE_DIR)
 
     try:
+        if osp.exists(filename):
+            echo_bold('Decrypting {!r} into {!r} for editing'.format(filename, edit_file))
+            decrypt(filename, edit_file)
+
         updated = edit(edit_file)
 
         if updated:
@@ -55,7 +52,7 @@ def main(filename):
         remove(edit_file)
 
 
-main.help = 'GpgEdit v{}, lets you edit gpg-encrypted file.'.format(__version__)
+main.help = 'GpgEdit v{}, lets you edit a gpg-encrypted file.'.format(__version__)
 
 
 def echo_bold(message):
