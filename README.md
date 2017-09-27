@@ -9,6 +9,7 @@ To install:
 To create new encrypted gpg:
 
     $ gpgedit secrets.gpg
+    <Launch editor>
     Saving new 'secrets.gpg', please enter a new passphrase
     gpg --yes -a --cipher-algo AES256 -o secrets.gpg -c /dev/shm/secrets.itje9kbg
     Enter passphrase: **********
@@ -21,7 +22,10 @@ To edit:
     Decrypting 'secrets.gpg' into '/dev/shm/secrets.9jyn3bw5' for editing
     gpg --yes -o /dev/shm/secrets.9jyn3bw5 secrets.gpg
     gpg: AES256 encrypted data
+    Enter passphrase: **********
+    Repeat passphrase: **********
     gpg: encrypted with 1 passphrase
+    <Launch editor>
     Saving changes into 'secrets.gpg', you may enter a new passphrase
     gpg --yes -a --cipher-algo AES256 -o secrets.gpg -c /dev/shm/secrets.9jyn3bw5
     Enter passphrase: **********
