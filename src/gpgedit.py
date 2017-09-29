@@ -11,7 +11,6 @@ from os import path as osp
 
 __version__ = pkg_resources.get_distribution('gpgedit').version
 
-GPG_SUFFIX = '.gpg'
 SECURE_DIR = '/dev/shm'
 CONTEXT_SETTINGS = {
     'help_option_names': ['-h', '--help']
@@ -24,12 +23,7 @@ def main(filename):
     '''
     Edit a gpg-encrypted file.
     '''
-    name, suffix = osp.splitext(osp.basename(filename))
-
-    if suffix != GPG_SUFFIX:
-        raise ClickException('Filename must end with .gpg')
-
-    _, edit_file = tempfile.mkstemp(prefix=name + '.', suffix='', dir=SECURE_DIR)
+    _, edit_file = tempfile.mkstemp(prefix=osp.basename(filename) + '.', dir=SECURE_DIR)
 
     try:
         if osp.exists(filename):
@@ -37,16 +31,19 @@ def main(filename):
             decrypt(filename, edit_file)
 
         updated = edit(edit_file)
+        save = True
 
-        if updated:
-            if osp.exists(filename):
+        if osp.exists(filename):
+            if updated:
                 echo_bold('Saving changes into {!r}, you may enter a new passphrase'.format(filename))
             else:
-                echo_bold('Saving new {!r}, please enter a new passphrase'.format(filename))
-
-            encrypt(edit_file, filename)
+                echo_bold('No changes')
+                save = False
         else:
-            echo_bold('No changes')
+            echo_bold('Saving new {!r}, please enter a new passphrase'.format(filename))
+
+        if save:
+            encrypt(edit_file, filename)
     finally:
         echo('Removing temporary file {!r}'.format(edit_file))
         remove(edit_file)
