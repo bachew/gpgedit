@@ -9,7 +9,7 @@ modules = [osp.splitext(osp.basename(path))[0]
            for path in glob(osp.join(proj_dir, 'src/*.py'))]
 config = {
     'name': 'gpgedit',
-    'version': '0.0.2',
+    'version': '0.0.3',
     'description': 'GpgEdit lets you edit a gpg-encrypted file',
     'license': 'MIT',
     'author': 'Chew Boon Aik',
@@ -24,7 +24,7 @@ config = {
     ],
     'entry_points': {
         'console_scripts': [
-            'gpgedit=gpgedit:main',
+            'gpgedit=gpgedit:cli',
         ],
     },
     'zip_safe': False,
