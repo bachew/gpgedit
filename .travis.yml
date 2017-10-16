@@ -13,21 +13,9 @@ script: tox
 deploy:
   - provider: pypi
     distributions: sdist bdist_wheel
-    server: https://test.pypi.org/legacy/
-    user: bachew
-    password:
-      secure: jJntZlECBkbzw1tkPV+JYMgUjZNkldCV6vcxV44cgYL/h8OWFwVzwnDEzPcCOI7g++8V6zoVvgHnIVlXlwjJswukeIV4+ZwIT4o3via2/2jNBPuQAshkg46fEm18IRuRz1JCLhp1b++OQ1y4pTtmQOSABVl38c0nNzMYA+BkQ3Y5CYm916uWsL0VNWvCnJoYB+fHp8fTyRTxjU3IEnaarqRBHvX+GnbsYwzIgTC/HXssb3IYaC3/7YEXVjNC+sWHcQ7zKA/5irEUD0W04G6qnX2SKPGGd0TlhhMb+isPdI1as2DhgiPgcl4HT5rFfCZhEFxAA4gCN5m2Id5+s9l0ZiffL6vtp5lxVoR7DRH/FQ6KaGGKrMHm2ffVoAYqHMqdPeg+haD7r/eKdqbv8EkNZvY2yeYtFWOTAZRtriXBXX95J7a9pwVRbEF9TnPb9JgfpringqBJNQBkOsXvA2hX/llf7hz3t0Q3CBKkr586SO4GiVfxXC2fv1qj1gIfPkeQ3GvQKqvFLpkUpFzn2nTQxdlR9XX0kn16FWjnL92CvKpX+8oCcyFXVD7qNWmFZbaQCn14C0t9F88MEA+8k/K8bAGsgItK+HFmQ+/Jn8H4OFG2Ml9u6nXgUy/KijEkGziqvX8cVtvQ0qn3JQlx0h3W+de6jnirV+UwEBQYE7cFf3M=
-    on:
-      branch: master
-      tags: false
-      condition: $TRAVIS_PYTHON_VERSION = "2.7"
-  - provider: pypi
-    distributions: sdist bdist_wheel
     server: https://upload.pypi.org/legacy/
     user: bachew
     password:
       secure: R6r/KY7x1Sx1FU2qCsZxf4IPch+CJB4vQUgxPi0YAJTuTTvssiqpOEcrNUmDv67bhD4cCiP4j3iJCZhzuQo60ghwsYvxKMUBb0wOFrz0nG3TzMemL+11VFjhEJ+OJ5l6Y1353opYr+suzLvFQxFcAPHeynieeLRCWcKRKQulFyTUgf5V9TrogobjF0WSWbI0ngQWslQ4/b4so77TJNXQVoFGmi3Ryqu/TRPCF/uF33Z+RsEd9GtGnYsHElwQsVL2rwNEltunTcdnGesRA7B7E6r6wyRFhPoThOHOoWX88P79tTY72OVxNJ2IFg5F6Ps/P9Li6fecLESx3EKtPojxqsoXdbhE4s84O7wyGjU99UIxLOep8nsrbN0ZM/F8kYTSK91cGXF6oLEHIAe8xhd02hQwQzMFAtWR9o+qXGovrJ515z7/5fATn7b24P94ooMUbwvCtfg/+6F8y3y0TS77SpV4XaiNhADKjlfHn3I4lLbIfqsTPjib8Dh996Ra1wzVOrGmYMkf8pZvgTEg7OAeXWmtauaOw/iCWZkbG1JtSj9ZYDM0JGa/48eIO9Wq9bPPPZn3S0FBERZ2tWamZgejMP8x4Mfi8NH08YiATe4IZW08jM2YlZHkuNHV8W9BG6AzezlzdtZaLiFHlPr0RDX+UfM77xWKX/zph5itto8cqZU=
     on:
-      branch: master
-      tags: true
       condition: $TRAVIS_PYTHON_VERSION = "2.7"

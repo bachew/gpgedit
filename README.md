@@ -89,13 +89,4 @@ Before releasing, make sure `README.md` is up-to-date. If you updated it, please
 
     $ markdown_py README.md -f tmp/README.html
 
-Increase `setup.py::config['version']`, commit and merge to master branch. Travis will build and deploy to [Test PyPI](https://testpypi.python.org). You can then test installation:
-
-    $ pip uninstall gpgedit
-    $ gpgedit  # error: No such file or directory
-    $ pip install -i https://testpypi.python.org/simple/ gpgedit
-    $ gpgedit -h  # check version
-
-After that [create a new release](https://github.com/bachew/gpgedit/releases) with the same version number but with `v` prefix. Travis will then build and deploy to [PyPI](https://pypi.python.org). You can then test installation as before but without specifying index URL:
-
-    $ pip install gpgedit
+Increase `setup.py::config['version']`, commit and merge to master branch. Travis will build and deploy to [PyPI](https://pypi.python.org).
