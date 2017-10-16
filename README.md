@@ -14,31 +14,32 @@ If you are afraid that PyPI repository can be compromised, you can always clone 
 To create new encrypted gpg:
 
 <pre>
-$ gpgedit secrets.gpg
-<em>Launch editor</em>
-<strong>Saving new 'secrets.gpg', please enter a new passphrase</strong>
-gpg --yes -a --cipher-algo AES256 -o secrets.gpg -c /dev/shm/secrets.gpg.itje9kbg
-Enter passphrase: **********
-Repeat passphrase: **********
-Removing temporary file '/dev/shm/secrets.gpg.itje9kbg'
+$ gpgedit tmp/x.gpg
+<b>kwrite '/dev/shm/x.gpg.uotc9z7g/plain'</b>
+Saving new 'tmp/x.gpg'
+<b>Enter passphrase:</b>
+<b>Confirm passphrase (1/2):</b>
+<b>Confirm passphrase (2/2):</b>
+gpg --yes -a --cipher-algo AES256 -o tmp/x.gpg -c --passphrase-file /dev/shm/x.gpg.uotc9z7g/encrypt.pass /dev/shm/x.gpg.uotc9z7g/plain
+Reading passphrase from file descriptor 3
+Remove '/dev/shm/x.gpg.uotc9z7g'
 </pre>
 
 To edit:
 
 <pre>
-$ gpgedit secrets.gpg
-<strong>Decrypting 'secrets.gpg' into '/dev/shm/secrets.9jyn3bw5' for editing</strong>
-gpg --yes -o /dev/shm/secrets.9jyn3bw5 secrets.gpg
+$ gpgedit tmp/x.gpg
+<b>Decrypting 'tmp/x.gpg' into '/dev/shm/x.gpg.lj98z4sn/plain'</b>
+<b>Enter passphrase:</b>
+gpg --yes -o /dev/shm/x.gpg.lj98z4sn/plain --passphrase-file /dev/shm/x.gpg.lj98z4sn/decrypt.pass tmp/x.gpg
+Reading passphrase from file descriptor 3
 gpg: AES256 encrypted data
-Enter passphrase: **********
-Repeat passphrase: **********
 gpg: encrypted with 1 passphrase
-<em>Launch editor</em>
-<strong>Saving changes into 'secrets.gpg', you may enter a new passphrase</strong>
-gpg --yes -a --cipher-algo AES256 -o secrets.gpg -c /dev/shm/secrets.gpg.9jyn3bw5
-Enter passphrase: **********
-Repeat passphrase: **********
-Removing temporary file '/dev/shm/secrets.gpg.9jyn3bw5'
+kwrite '/dev/shm/x.gpg.lj98z4sn/plain'
+<b>Saving 'tmp/x.gpg'</b>
+gpg --yes -a --cipher-algo AES256 -o tmp/x.gpg -c --passphrase-file /dev/shm/x.gpg.lj98z4sn/decrypt.pass /dev/shm/x.gpg.lj98z4sn/plain
+Reading passphrase from file descriptor 3
+Remove '/dev/shm/x.gpg.lj98z4sn'
 </pre>
 
 Notice the output is verbose and there's no way to turn it off so that you see how it works everytime. Please take a look at <a href="https://github.com/bachew/gpgedit/blob/master/src/gpgedit.py"><code>gpgedit.py</code></a> knowing that GpgEdit doesn't send your secrets somewhere else!
@@ -65,7 +66,9 @@ To test on Python 2.7:
 
     $ mkdir tmp
 
-Since GpgEdit is very simple, just run these manual tests:
+Run `tox` to run unit tests on Python 2.7 and 3.
+
+Lastly, some manual tests:
 
     # Create new gpg file
     $ gpgedit tmp/x.gpg
@@ -78,10 +81,6 @@ Since GpgEdit is very simple, just run these manual tests:
 
     # Edit but without changes
     $ gpgedit tmp/x.gpg
-
-Also run tox to make sure package and install work:
-
-    tox
 
 
 ### Release
