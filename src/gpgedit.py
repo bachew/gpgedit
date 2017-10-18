@@ -19,16 +19,23 @@ CONTEXT_SETTINGS = {
     'help_option_names': ['-h', '--help']
 }
 SECURE_DIR = '/dev/shm'
+PY2 = sys.version_info[0] == 2
+ENCODING = sys.stdout.encoding or 'utf-8'
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option('-e', '--editor',
               help='Text editor, default auto-detect')
+@click.option('-E', '--echo', is_flag=True,
+              help="Equivalent to '-e echo'")
 @click.option('--change-passphrase', is_flag=True,
               help='Prompt for new passphrase to encrypt after editing')
 @click.argument('gpg_file')
-def cli(editor, change_passphrase, gpg_file):
+def cli(editor, echo, change_passphrase, gpg_file):
     try:
+        if echo:
+            editor = 'echo'
+
         gpgedit(gpg_file,
                 change_pass=change_passphrase,
                 editor=editor,
@@ -43,7 +50,7 @@ cli.help = 'GpgEdit {} lets you edit a gpg-encrypted file.'.format(VERSION)
 
 class gpgedit(object):
     def __init__(self, cipher_file,
-                 write=None, editor='cat',
+                 write=None, editor='echo',
                  decrypt_pass=None, encrypt_pass=None,
                  change_pass=False, ask_pass=False,
                  **kwargs):
@@ -64,58 +71,60 @@ class gpgedit(object):
             self.temp_dir = tempfile.mkdtemp(dir=SECURE_DIR, prefix=prefix)
 
             try:
-                self.plain_file = osp.join(self.temp_dir, 'plain')
                 self._edit(**kwargs)
             finally:
-                echo('Remove {!r}'.format(self.temp_dir))
+                echo('Remove {}'.format(srepr(self.temp_dir)))
                 shutil.rmtree(self.temp_dir)
         finally:
             os.umask(orig_umask)
 
     def _edit(self, set_plaintext=False):
+        plain_file = osp.join(self.temp_dir, osp.basename(self.cipher_file))
         decrypt_pass_file = None
 
         if osp.exists(self.cipher_file):
-            echo_bold('Decrypting {!r} into {!r}'.format(self.cipher_file, self.plain_file))
-            decrypt_pass_file = self.get_passphrase_file('decrypt.pass', self.decrypt_pass)
-            decrypt(self.cipher_file, self.plain_file, decrypt_pass_file)
+            echo_bold('Decrypting {} into {}'.format(srepr(self.cipher_file), srepr(plain_file)))
+            decrypt_pass_file = self.get_passphrase_file('decrypt', self.decrypt_pass)
+            decrypt(self.cipher_file, plain_file, decrypt_pass_file)
 
-        mtime = last_modified(self.plain_file)
+        mtime = last_modified(plain_file)
 
         if self.write:
-            echo_bold('Write {!r}'.format(self.plain_file))
+            echo_bold('Write {}'.format(srepr(plain_file)))
 
-            with open(self.plain_file, 'w') as f:
+            with open(plain_file, 'w') as f:
                 f.write(self.write)
                 time.sleep(0.01)  # XXX: so that mtime != mtime2
         else:
-            echo_bold('{} {!r}'.format(self.editor, self.plain_file))
-            click.edit(editor=self.editor, filename=self.plain_file)
+            echo_bold('{} {}'.format(self.editor, srepr(plain_file)))
+            click.edit(editor=self.editor, filename=plain_file)
 
-        mtime2 = last_modified(self.plain_file)
+        if not osp.exists(plain_file):
+            open(plain_file, 'w').close()  # touch
+
+        mtime2 = last_modified(plain_file)
         modified = mtime != mtime2
         save = True
 
         if osp.exists(self.cipher_file):
             if modified:
-                echo_bold('Saving {!r}'.format(self.cipher_file))
+                echo_bold('Saving {}'.format(srepr(self.cipher_file)))
             else:
                 echo_bold('No changes')
                 save = False
         else:
-            echo_bold('Saving new {!r}'.format(self.cipher_file))
+            echo_bold('Saving new {}'.format(srepr(self.cipher_file)))
 
         if self.change_pass or save:
             if self.change_pass or not decrypt_pass_file:
-                encrypt_pass_file = self.get_passphrase_file(
-                    'encrypt.pass', self.encrypt_pass, confirm=2)
+                encrypt_pass_file = self.get_passphrase_file('encrypt', self.encrypt_pass, confirm=2)
             else:
                 encrypt_pass_file = decrypt_pass_file
 
-            encrypt(self.plain_file, self.cipher_file, encrypt_pass_file)
+            encrypt(plain_file, self.cipher_file, encrypt_pass_file)
 
         if set_plaintext:
-            with open(self.plain_file) as f:
+            with open(plain_file) as f:
                 self.plaintext = f.read()
 
     def detect_editor(self):
@@ -142,11 +151,9 @@ class gpgedit(object):
             else:
                 raise ValueError('No passphrase and ask_pass is False')
 
-        path = osp.join(self.temp_dir, name)
-
-        with open(path, 'w') as f:
-            f.write(passphrase)
-
+        fd, path = tempfile.mkstemp(dir=self.temp_dir, prefix=name + '.passphrase.')
+        os.write(fd, passphrase)
+        os.close(fd)
         return path
 
     def get_passphrase(self, confirm):
@@ -193,7 +200,7 @@ def run(cmdlist):
         subprocess.check_call(cmdlist)
     except OSError as e:
         if e.errno == errno.ENOENT:
-            raise OSError('Command {!r} not found, did you install it?'.format(cmdlist[0]))
+            raise OSError('Command {} not found, did you install it?'.format(srepr(cmdlist[0])))
 
         raise
 
@@ -239,3 +246,13 @@ def last_modified(filename):
             return 0
 
         raise
+
+
+def srepr(obj):
+    '''
+    String representation without 'u' prefix.
+    '''
+    if PY2 and isinstance(obj, unicode):
+        obj = obj.encode(ENCODING)
+
+    return repr(obj)

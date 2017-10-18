@@ -18,6 +18,14 @@ def test_create_new(tmpdir):
     assert '-----BEGIN PGP MESSAGE-----' in ciphertext
 
 
+def test_create_new_no_edit(tmpdir):
+    cipher_file = tmpdir.join('new.gpg')
+    assert not cipher_file.check()
+    gpgedit(cipher_file.strpath, encrypt_pass='passphrase')
+    ciphertext = cipher_file.read()
+    assert '-----BEGIN PGP MESSAGE-----' in ciphertext
+
+
 def test_decrypt(cipher_file):
     edit = gpgedit(cipher_file, decrypt_pass='passphrase', set_plaintext=True)
     assert edit.plaintext == 'plaintext\n'

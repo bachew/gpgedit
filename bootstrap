@@ -8,12 +8,14 @@ import runpy
 import shutil
 import subprocess
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from os import path as osp
 
 
 class main(object):
+    VERSION = '0.0.1'
     CONFIGURABLES = [
+        'description',
         'python',
         'venv_dir',
         'bootstrap_requires',
@@ -34,22 +36,27 @@ class main(object):
         self.dev = True
         self.pip_install_options = []
         self.post_bootstrap = None
+        self._python_version_cache = {}
 
         info('cd {!r}'.format(self.project_dir))
         os.chdir(self.project_dir)
 
-        # Remove residue pyc to prevent phantom config, only Python 2 pyc got
-        # such issue, Python 3 __pycache__ is safe to hang around
+        # Remove residue pyc to prevent phantom config
         self.remove_config_pyc()
 
-        self.load_config_module('bootstrap_config')
-        self.load_config_module('bootstrap_config_test')
-
-        self.remove_config_pyc()  # remove again to be clean
+        try:
+            self.load_config_module('bootstrap_config')
+            self.load_config_module('bootstrap_config_test')
+        finally:
+            self.remove_config_pyc()  # remove again to be clean
 
         info()  # easier to read
 
         args = self.parse_args()
+
+        if args.version:
+            info('bootstrap {}'.format(self.VERSION))
+            return
 
         if args.python:
             self.python = args.python
@@ -79,8 +86,8 @@ class main(object):
             return self._description
 
         return (
-            'Bootstrap {} for development.'
-            ' For more info, go to https://github.com/bachew/mollusc').format(
+            'bootstrap {} for development\n\n'
+            'For more info: https://github.com/bachew/mollusc#bootstrap').format(
             self.project_name)
 
     @description.setter
@@ -97,13 +104,13 @@ class main(object):
 
     @property
     def python_version(self):
-        cache = getattr(self, '_python_version_cache', {})
+        cache = self._python_version_cache
 
         if self.python not in cache:
             # Python 2.7 prints version to stderr
             output = subprocess.check_output([self.python, '--version'],
                                              stderr=subprocess.STDOUT)
-            output = output.decode(sys.stdout.encoding)
+            output = output.decode(sys.stdout.encoding or 'utf-8')
             m = re.match(r'.*(\d+)\.(\d+)\.(\d+).*', output.strip())
             cache[self.python] = int(m.group(1)), int(m.group(2)), int(m.group(3))
 
@@ -115,7 +122,7 @@ class main(object):
             return self._venv_dir
 
         version_str = '.'.join([str(c) for c in self.python_version])
-        venv_dir = osp.relpath(osp.join(self.project_dir, '{}-py{}'.format(self.project_name, version_str)))
+        venv_dir = osp.relpath(osp.join(self.project_dir, '.{}-py{}'.format(self.project_name, version_str)))
         return venv_dir
 
     @venv_dir.setter
@@ -127,7 +134,8 @@ class main(object):
 
         try:
             # Not using run_path() because in python<3.4 imported modules
-            # become None when calling POST_BOOTSTRAP
+            # become None when calling post_bootstrap(), see:
+            # https://stackoverflow.com/questions/25649676/where-is-pythons-shutdown-procedure-documented
             mod = runpy.run_module(mod_name)
         except ImportError:
             info('{}: file not found, skipped'.format(mod_file))
@@ -142,6 +150,14 @@ class main(object):
     def remove_config_pyc(self):
         def rm(path):
             try:
+                try:
+                    shutil.rmtree(path)
+                except OSError as e:
+                    if e.errno == errno.ENOTDIR:
+                        pass  # continue remove the file
+                    else:
+                        raise
+
                 os.remove(path)
             except OSError as e:
                 if e.errno == errno.ENOENT:
@@ -149,11 +165,13 @@ class main(object):
                 else:
                     raise
 
+        rm('__pycache__')
         rm('bootstrap_config.pyc')
         rm('bootstrap_config_test.pyc')
 
     def parse_args(self):
-        parser = ArgumentParser(description=self.description)
+        parser = ArgumentParser(description=self.description,
+                                formatter_class=RawDescriptionHelpFormatter)
 
         def add_flag(key, on_opt, on_help, off_opt, off_help):
             if getattr(self, key):
@@ -167,10 +185,13 @@ class main(object):
             parser.add_argument(off_opt, action='store_true', help=off_help + off_default)
 
         parser.add_argument('-p', dest='python',
-                            help='Python executable (default: {})'.format(self.python))
+                            help='python executable (default: {})'.format(self.python))
 
         parser.add_argument('-d', dest='venv_dir',
                             help='virtual environment directory (default: {})'.format(self.venv_dir))
+
+        parser.add_argument('--version', action='store_true',
+                            help='print bootstrap script version')
 
         def boolean(s):
             s = s.lower()
@@ -194,15 +215,23 @@ class main(object):
         return args
 
     def update(self):
+        in_venv = self.inside_venv()
         venv_dir = self.venv_dir
 
-        if self.clean and osp.exists(venv_dir):
+        if self.clean:
+            if in_venv:
+                raise BootstrapError('Cannot remove virtual environment because you are inside')
+
             info('Removing virtual environment {!r}'.format(venv_dir))
-            shutil.rmtree(venv_dir)
+            try:
+                shutil.rmtree(venv_dir)
+            except OSError as e:
+                if e.errno == errno.ENOENT:
+                    pass
+                else:
+                    raise
 
-        venv_updated = False
-
-        if not self.inside_venv():
+        if not in_venv:
             info('Not inside virtual environment, create/updating one...')
 
             if self.python_version < (3, 0, 0):
@@ -210,10 +239,9 @@ class main(object):
             else:
                 self.run(['python3', '-m', 'venv', venv_dir])
 
-            venv_updated = True
+            self.activate_venv()
 
-        pip = osp.join(venv_dir, 'bin', 'pip') if venv_updated else 'pip'
-        pip_install = [pip, 'install']
+        pip_install = ['pip', 'install']
 
         if self.pip_install_options:
             pip_install += list(self.pip_install_options)
@@ -235,8 +263,8 @@ class main(object):
             kwargs = {
                 'dev': self.dev,
                 'venv_dir': venv_dir,
+                'clean': self.clean,
             }
-            info('post_bootstrap', kwargs)
 
             try:
                 work_dir = os.getcwd()
@@ -244,8 +272,8 @@ class main(object):
             finally:
                 os.chdir(work_dir)
 
-        if venv_updated:
-            info("Virtual environment created/updated, please run 'source {}' to activate it".format(
+        if not in_venv:
+            info("\nPlease run 'source {}' to activate virtual environment".format(
                 osp.relpath(osp.join(venv_dir, 'bin', 'activate'))))
 
     def inside_venv(self):
@@ -264,16 +292,34 @@ class main(object):
         info('Inside virtual environment')
         return True
 
+    def activate_venv(self):
+        # Modified from https://github.com/pypa/virtualenv/blob/master/virtualenv_embedded/activate_this.py
+        old_os_path = os.environ.get('PATH', '')
+        base = self.venv_dir
+        os.environ['PATH'] = osp.join(base, 'bin') + os.pathsep + old_os_path
+        if sys.platform == 'win32':
+            site_packages = os.path.join(base, 'Lib', 'site-packages')
+        else:
+            site_packages = os.path.join(base, 'lib', 'python%s' % sys.version[:3], 'site-packages')
+        prev_sys_path = list(sys.path)
+        import site
+        site.addsitedir(site_packages)
+        sys.real_prefix = sys.prefix
+        sys.prefix = base
+        # Move the added items to the front of the path:
+        new_sys_path = []
+        for item in list(sys.path):
+            if item not in prev_sys_path:
+                new_sys_path.append(item)
+                sys.path.remove(item)
+        sys.path[:0] = new_sys_path
+
     def run(self, cmd):
         cmdline = subprocess.list2cmdline(cmd)
         info('run:', cmdline)
 
-        env = dict(os.environ)
-        # TODO: make this configurable, maybe can use --cache-dir option?
-        env['PIP_DOWNLOAD_CACHE'] = osp.expanduser('~/.pip/cache')
-
         try:
-            subprocess.check_call(cmd, env=env)
+            subprocess.check_call(cmd)
         except EnvironmentError as e:
             if e.errno == errno.ENOENT:
                 raise BootstrapError('Command {!r} not found, did you install it?'.format(cmd[0]))
