@@ -20,7 +20,8 @@ CONTEXT_SETTINGS = {
 }
 SECURE_DIR = '/dev/shm'
 PY2 = sys.version_info[0] == 2
-ENCODING = sys.stdout.encoding or 'utf-8'
+DEFAULT_ENCODING = 'utf-8'
+OUTPUT_ENCODING = sys.stdout.encoding or DEFAULT_ENCODING
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
@@ -152,7 +153,7 @@ class gpgedit(object):
                 raise ValueError('No passphrase and ask_pass is False')
 
         fd, path = tempfile.mkstemp(dir=self.temp_dir, prefix=name + '.passphrase.')
-        os.write(fd, passphrase)
+        os.write(fd, passphrase.encode(DEFAULT_ENCODING))
         os.close(fd)
         return path
 
@@ -253,6 +254,6 @@ def srepr(obj):
     String representation without 'u' prefix.
     '''
     if PY2 and isinstance(obj, unicode):
-        obj = obj.encode(ENCODING)
+        obj = obj.encode(OUTPUT_ENCODING)
 
     return repr(obj)
