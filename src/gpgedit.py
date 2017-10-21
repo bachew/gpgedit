@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
+import gevent.monkey
+
+gevent.monkey.patch_all()  # noqa
+
 import click
 import errno
 import os
+import gevent
 import pkg_resources
 import shutil
-import subprocess
 import sys
+import subprocess
 import tempfile
 import time
 from click import echo
 from getpass import getpass
 from os import path as osp
-from subprocess import CalledProcessError
 
 
 VERSION = pkg_resources.get_distribution('gpgedit').version
@@ -72,61 +76,67 @@ class gpgedit(object):
             self.temp_dir = tempfile.mkdtemp(dir=SECURE_DIR, prefix=prefix)
 
             try:
-                self._edit(**kwargs)
+                self.run(**kwargs)
             finally:
                 echo('Remove {}'.format(srepr(self.temp_dir)))
                 shutil.rmtree(self.temp_dir)
         finally:
             os.umask(orig_umask)
 
-    def _edit(self, set_plaintext=False):
-        plain_file = osp.join(self.temp_dir, osp.basename(self.cipher_file))
-        decrypt_pass_file = None
+    def run(self):
+        self.plain_file = osp.join(self.temp_dir, osp.basename(self.cipher_file))
+        self.decrypt_pass_file = None
 
         if osp.exists(self.cipher_file):
-            echo_bold('Decrypting {} into {}'.format(srepr(self.cipher_file), srepr(plain_file)))
-            decrypt_pass_file = self.get_passphrase_file('decrypt', self.decrypt_pass)
-            decrypt(self.cipher_file, plain_file, decrypt_pass_file)
+            echo_bold('Decrypting {} into {}'.format(srepr(self.cipher_file), srepr(self.plain_file)))
+            self.decrypt_pass_file = self.get_passphrase_file('decrypt', self.decrypt_pass)
+            decrypt(self.cipher_file, self.plain_file, self.decrypt_pass_file)
 
-        mtime = last_modified(plain_file)
+        self.editing = True
+        self.last_modified = last_modified(self.plain_file)
 
+        threads = [
+            gevent.spawn(self.edit),
+            gevent.spawn(self.auto_save),
+        ]
+        gevent.joinall(threads, raise_error=True)
+        self.save()
+
+    def edit(self):
         if self.write:
-            echo_bold('Write {}'.format(srepr(plain_file)))
+            echo_bold('Write {}'.format(srepr(self.plain_file)))
 
-            with open(plain_file, 'w') as f:
+            with open(self.plain_file, 'w') as f:
                 f.write(self.write)
-                time.sleep(0.01)  # XXX: so that mtime != mtime2
+                time.sleep(0.01)  # XXX: enough time to flush stat cache
         else:
-            echo_bold('{} {}'.format(self.editor, srepr(plain_file)))
-            click.edit(editor=self.editor, filename=plain_file)
+            echo_bold('{} {}'.format(self.editor, srepr(self.plain_file)))
+            click.edit(editor=self.editor, filename=self.plain_file)
 
-        if not osp.exists(plain_file):
-            open(plain_file, 'w').close()  # touch
+        # Create if not exists
+        if not osp.exists(self.plain_file):
+            open(self.plain_file, 'w').close()
 
-        mtime2 = last_modified(plain_file)
-        modified = mtime != mtime2
-        save = True
+        self.editing = False
 
-        if osp.exists(self.cipher_file):
-            if modified:
-                echo_bold('Saving {}'.format(srepr(self.cipher_file)))
-            else:
-                echo_bold('No changes')
-                save = False
+    def auto_save(self):
+        while self.editing:
+            gevent.sleep(0.5)
+            self.save()  # TODO: what to do with change_pass?
+
+    def save(self):
+        if not self.change_pass and osp.exists(self.cipher_file) and self.last_modified == last_modified(self.plain_file):
+            return
+
+        if self.change_pass or not self.decrypt_pass_file:
+            encrypt_pass_file = self.get_passphrase_file('encrypt', self.encrypt_pass, confirm=2)
         else:
-            echo_bold('Saving new {}'.format(srepr(self.cipher_file)))
+            encrypt_pass_file = self.decrypt_pass_file
 
-        if self.change_pass or save:
-            if self.change_pass or not decrypt_pass_file:
-                encrypt_pass_file = self.get_passphrase_file('encrypt', self.encrypt_pass, confirm=2)
-            else:
-                encrypt_pass_file = decrypt_pass_file
-
-            encrypt(plain_file, self.cipher_file, encrypt_pass_file)
-
-        if set_plaintext:
-            with open(plain_file) as f:
-                self.plaintext = f.read()
+        echo_bold('Saving {}'.format(srepr(self.cipher_file)))
+        encrypt(self.plain_file, self.cipher_file, encrypt_pass_file)
+        echo_bold('Saved {}'.format(srepr(self.cipher_file)))
+        self.last_modified = last_modified(self.plain_file)
 
     def detect_editor(self):
         # Modified from click._termui_impl:Editor.get_editor()
@@ -213,7 +223,7 @@ def decrypt(cipher_file, plain_file, pass_file=None):
 
     try:
         run(cmd)
-    except CalledProcessError:
+    except subprocess.CalledProcessError:
         raise GpgError('Decryption failed!')
 
 
@@ -228,7 +238,7 @@ def encrypt(plain_file, cipher_file, pass_file=None):
 
     try:
         run(cmd)
-    except CalledProcessError:
+    except subprocess.CalledProcessError:
         raise GpgError('Encryption failed!')
 
 

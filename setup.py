@@ -21,6 +21,7 @@ config = {
     'py_modules': modules,
     'install_requires': [
         'click>=6.7',
+        'gevent>=1.2.2',
     ],
     'entry_points': {
         'console_scripts': [
