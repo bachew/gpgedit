@@ -54,17 +54,19 @@ cli.help = 'GpgEdit {} lets you edit a gpg-encrypted file.'.format(VERSION)
 
 
 class gpgedit(object):
+    CONFIRM_PASSPHRASE = 2
+    AUTO_SAVE_INTERVAL = 0.5
+
     def __init__(self, cipher_file,
                  write=None, editor='echo',
-                 decrypt_pass=None, encrypt_pass=None,
+                 passphrase=None,
                  change_pass=False, ask_pass=False,
                  **kwargs):
 
         self.cipher_file = cipher_file
         self.write = write
         self.editor = editor or self.detect_editor()
-        self.decrypt_pass = decrypt_pass
-        self.encrypt_pass = encrypt_pass
+        self.passphrase = passphrase
         self.change_pass = change_pass
         self.ask_pass = ask_pass
 
@@ -85,12 +87,16 @@ class gpgedit(object):
 
     def run(self):
         self.plain_file = osp.join(self.temp_dir, osp.basename(self.cipher_file))
-        self.decrypt_pass_file = None
+        self.passphrase_file = None
 
         if osp.exists(self.cipher_file):
             echo_bold('Decrypting {} into {}'.format(srepr(self.cipher_file), srepr(self.plain_file)))
-            self.decrypt_pass_file = self.get_passphrase_file('decrypt', self.decrypt_pass)
-            decrypt(self.cipher_file, self.plain_file, self.decrypt_pass_file)
+            self.get_passphrase_file()
+            decrypt(self.cipher_file, self.plain_file, self.passphrase_file)
+
+        # TODO: looks messy
+        if not self.passphrase_file or self.change_pass:
+            self.get_passphrase_file(confirm=self.CONFIRM_PASSPHRASE)
 
         self.editing = True
         self.last_modified = last_modified(self.plain_file)
@@ -113,28 +119,24 @@ class gpgedit(object):
             echo_bold('{} {}'.format(self.editor, srepr(self.plain_file)))
             click.edit(editor=self.editor, filename=self.plain_file)
 
-        # Create if not exists
-        if not osp.exists(self.plain_file):
-            open(self.plain_file, 'w').close()
-
         self.editing = False
 
     def auto_save(self):
         while self.editing:
-            gevent.sleep(0.5)
-            self.save()  # TODO: what to do with change_pass?
+            gevent.sleep(self.AUTO_SAVE_INTERVAL)
+            self.save()
 
     def save(self):
-        if not self.change_pass and osp.exists(self.cipher_file) and self.last_modified == last_modified(self.plain_file):
+        if osp.exists(self.cipher_file) and self.last_modified == last_modified(self.plain_file):
             return
 
-        if self.change_pass or not self.decrypt_pass_file:
-            encrypt_pass_file = self.get_passphrase_file('encrypt', self.encrypt_pass, confirm=2)
-        else:
-            encrypt_pass_file = self.decrypt_pass_file
-
         echo_bold('Saving {}'.format(srepr(self.cipher_file)))
-        encrypt(self.plain_file, self.cipher_file, encrypt_pass_file)
+
+        # Create if not exists
+        if not osp.exists(self.plain_file):
+            open(self.plain_file, 'w').close()
+
+        encrypt(self.plain_file, self.cipher_file, self.passphrase_file)
         echo_bold('Saved {}'.format(srepr(self.cipher_file)))
         self.last_modified = last_modified(self.plain_file)
 
@@ -155,19 +157,22 @@ class gpgedit(object):
 
         return 'vi'
 
-    def get_passphrase_file(self, name, passphrase, confirm=0):
-        if not passphrase:
-            if self.ask_pass:
-                passphrase = self.get_passphrase(confirm)
-            else:
+    def get_passphrase_file(self, confirm=0):
+        if self.passphrase_file:
+            return
+
+        if not self.passphrase:
+            if not self.ask_pass:
                 raise ValueError('No passphrase and ask_pass is False')
 
-        fd, path = tempfile.mkstemp(dir=self.temp_dir, prefix=name + '.passphrase.')
-        os.write(fd, passphrase.encode(DEFAULT_ENCODING))
-        os.close(fd)
-        return path
+            self.passphrase = self.ask_passphrase(confirm)
 
-    def get_passphrase(self, confirm):
+        fd, path = tempfile.mkstemp(dir=self.temp_dir, prefix='passphrase.')
+        os.write(fd, self.passphrase.encode(DEFAULT_ENCODING))
+        os.close(fd)
+        self.passphrase_file = path
+
+    def ask_passphrase(self, confirm):
         def get(prompt):
             return getpass(click.style(prompt, bold=True))
 
