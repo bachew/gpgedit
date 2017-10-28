@@ -2,44 +2,58 @@
 
 GpgEdit uses GnuPG to encrypt your secrets into a simple gpg file.
 
-To install:
+
+## Installation
+
+You can install from PyPI:
 
     pip install gpgedit
 
-If you are afraid that PyPI repository can be compromised, you can always clone directly and install:
+Or from zip URL:
+
+    pip install https://github.com/bachew/gpgedit/archive/master.zip
+
+Or install from cloned repo:
 
     git clone https://github.com/bachew/gpgedit.git
-    pip install ./gpgedit
+    pip install gpgedit
+
+
+## Usage
 
 To create new encrypted gpg:
 
 <pre>
-$ gpgedit tmp/x.gpg
-<b>kwrite '/dev/shm/x.gpg.uotc9z7g/plain'</b>
-Saving new 'tmp/x.gpg'
+$ gpgedit tmp/x
 <b>Enter passphrase:</b>
 <b>Confirm passphrase (1/2):</b>
 <b>Confirm passphrase (2/2):</b>
-gpg --yes -a --cipher-algo AES256 -o tmp/x.gpg -c --passphrase-file /dev/shm/x.gpg.uotc9z7g/encrypt.pass /dev/shm/x.gpg.uotc9z7g/plain
+<b>kwrite '/dev/shm/x.op36kgx8/x'</b>
+...
+<b>Encrypting '/dev/shm/x.op36kgx8/x' to 'tmp/x'
+gpg --yes -a --cipher-algo AES256 -c --passphrase-file /dev/shm/x.op36kgx8/passphrase.7zlszwz2 -o tmp/x /dev/shm/x.op36kgx8/x</b>
 Reading passphrase from file descriptor 3
-Remove '/dev/shm/x.gpg.uotc9z7g'
+<b>Saved 'tmp/x'</b>
 </pre>
 
 To edit:
 
 <pre>
-$ gpgedit tmp/x.gpg
-<b>Decrypting 'tmp/x.gpg' into '/dev/shm/x.gpg.lj98z4sn/plain'</b>
+$ gpgedit tmp/x
 <b>Enter passphrase:</b>
-gpg --yes -o /dev/shm/x.gpg.lj98z4sn/plain --passphrase-file /dev/shm/x.gpg.lj98z4sn/decrypt.pass tmp/x.gpg
+<b>Decrypting 'tmp/x' to '/dev/shm/x.d059kzze/x'</b>
+gpg --yes --passphrase-file /dev/shm/x.d059kzze/passphrase.dsl_gwa6 -o /dev/shm/x.d059kzze/x tmp/x
 Reading passphrase from file descriptor 3
 gpg: AES256 encrypted data
 gpg: encrypted with 1 passphrase
-kwrite '/dev/shm/x.gpg.lj98z4sn/plain'
-<b>Saving 'tmp/x.gpg'</b>
-gpg --yes -a --cipher-algo AES256 -o tmp/x.gpg -c --passphrase-file /dev/shm/x.gpg.lj98z4sn/decrypt.pass /dev/shm/x.gpg.lj98z4sn/plain
+<b>kwrite '/dev/shm/x.d059kzze/x'</b>
+...
+<b>Encrypting '/dev/shm/x.d059kzze/x' to 'tmp/x'</b>
+gpg --yes -a --cipher-algo AES256 -c --passphrase-file /dev/shm/x.d059kzze/passphrase.kbp9kerp -o tmp/x /dev/shm/x.d059kzze/x
 Reading passphrase from file descriptor 3
-Remove '/dev/shm/x.gpg.lj98z4sn'
+<b>Saved 'tmp/x'</b>
+kwrite(3077) KDirWatch::removeFile: doesn't know "/dev/shm/x.d059kzze/x"
+Remove '/dev/shm/x.d059kzze'
 </pre>
 
 Notice the output is verbose and there's no way to turn it off so that you see how it works everytime. Please take a look at <a href="https://github.com/bachew/gpgedit/blob/master/src/gpgedit.py"><code>gpgedit.py</code></a> knowing that GpgEdit doesn't send your secrets somewhere else!
