@@ -4,6 +4,10 @@ from gpgedit import GpgError, gpgedit
 
 
 class edit(gpgedit):
+    def __init__(self, cipher_file, **kwargs):
+        kwargs['prompt'] = False
+        super(edit, self).__init__(cipher_file, **kwargs)
+
     def run(self):
         super(edit, self).run()
 
@@ -54,12 +58,11 @@ def test_no_changes(cipher_file):
     edit(cipher_file, editor='cat', passphrase='passphrase')
 
 
-# def test_change_passphrase(cipher_file):
-#     edit(cipher_file,
-#          decrypt_pass='passphrase', encrypt_pass='new passphrase',
-#          change_pass=True)
+def test_change_passphrase(cipher_file):
+    edit(cipher_file, passphrase='passphrase',
+         change_passphrase=True, new_passphrase='new passphrase')
 
-#     with pytest.raises(GpgError):
-#         edit(cipher_file, decrypt_pass='passphrase')
+    with pytest.raises(GpgError):
+        edit(cipher_file, passphrase='passphrase')
 
-#     edit(cipher_file, decrypt_pass='new passphrase')
+    edit(cipher_file, passphrase='new passphrase')
