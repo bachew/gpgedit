@@ -7,16 +7,22 @@ GpgEdit uses GnuPG to encrypt your secrets into a simple gpg file.
 
 You can install from PyPI:
 
-    pip install gpgedit
+```console
+$ pip install gpgedit
+```
 
 Or from zip URL:
 
-    pip install https://github.com/bachew/gpgedit/archive/master.zip
+```console
+pip install https://github.com/bachew/gpgedit/archive/master.zip
+```
 
 Or install from cloned repo:
 
-    git clone https://github.com/bachew/gpgedit.git
-    pip install gpgedit
+```consle
+git clone https://github.com/bachew/gpgedit.git
+pip install gpgedit
+```
 
 
 ## Usage
@@ -61,46 +67,45 @@ Notice the output is verbose and there's no way to turn it off so that you see h
 
 ## Development
 
-To setup development environment, clone the repo, run bootstrap and activate virtual environment:
+To setup development environment, clone the repo, run init.py and activate virtual environment:
 
-    $ ./bootstrap
-    $ source gpgedit-py3*/bin/activate
-    $ gpgedit -h
-
-To test on Python 2.7:
-
-    $ cat > bootstrap_config_test.py
-    python = 'python2'
-    venv_dir = 'gpgedit-py2.7'
-    $ ./bootstrap
-    $ source gpgedit-py2.7/bin/activate
-    $ gpgedit -h
+```console
+$ python3 init.py
+$ pipenv shell
+$ gpgedit -h
+```
 
 `tmp` is listed in `.gitignore`, create it for use in testing:
 
-    $ mkdir tmp
+```console
+$ mkdir tmp
+```
 
 Run `tox` to run unit tests on Python 2.7 and 3.
 
 Lastly, some manual tests:
 
-    # Create new gpg file
-    $ gpgedit tmp/x.gpg
+```console
+# Create new gpg file
+$ gpgedit tmp/x.gpg
 
-    # Create new gpg file without changes
-    $ gpgedit tmp/y.gpg
+# Create new gpg file without changes
+$ gpgedit tmp/y.gpg
 
-    # Edit existing gpg file
-    $ gpgedit tmp/x.gpg
+# Edit existing gpg file
+$ gpgedit tmp/x.gpg
 
-    # Edit but without changes
-    $ gpgedit tmp/x.gpg
+# Edit but without changes
+$ gpgedit tmp/x.gpg
+```
 
 
 ### Release
 
 Before releasing, make sure `README.md` is up-to-date. If you updated it, please preview it before committing:
 
-    $ markdown_py README.md -f tmp/README.html
+```console
+$ markdown_py README.md -f tmp/README.html
+```
 
 Increase `setup.py::config['version']`, commit and merge to master branch. Travis will build and deploy to [PyPI](https://pypi.python.org).
