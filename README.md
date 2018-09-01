@@ -31,6 +31,7 @@ To create new encrypted gpg:
 
 <pre>
 $ gpgedit tmp/x
+New file 'tmp/x' will be created
 <b>Enter passphrase:</b>
 <b>Confirm passphrase (1/2):</b>
 <b>Confirm passphrase (2/2):</b>
@@ -81,7 +82,7 @@ $ gpgedit -h
 $ mkdir tmp
 ```
 
-Run `tox` to run unit tests on Python 2.7 and 3.
+Run `inv test` to run unit tests on Python 2.7 and 3.
 
 Lastly, some manual tests:
 
@@ -99,13 +100,26 @@ $ gpgedit tmp/x.gpg
 $ gpgedit tmp/x.gpg
 ```
 
-
-### Release
-
-Before releasing, make sure `README.md` is up-to-date. If you updated it, please preview it before committing:
+To build package:
 
 ```console
-$ markdown_py README.md -f tmp/README.html
+$ inv build
 ```
 
-Increase `setup.py::config['version']`, commit and merge to master branch. Travis will build and deploy to [PyPI](https://pypi.python.org).
+To generate `README.html`:
+
+```console
+$ inv gen-readme
+```
+
+To upload package:
+
+```console
+$ inv upload
+```
+
+Everything in one command:
+
+```console
+$ inv all
+```

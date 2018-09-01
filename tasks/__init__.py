@@ -12,7 +12,7 @@ os.chdir(osp.dirname(osp.dirname(__file__)))
 
 @task
 def init(ctx):
-    pass  # nothing
+    ctx.run('pip install -e .')
 
 
 @task
@@ -24,6 +24,11 @@ def test(ctx):
 def build(ctx):
     ctx.run('rm -rf build dist')
     ctx.run('python setup.py sdist bdist_wheel')
+
+
+@task
+def gen_readme(ctx):
+    ctx.run('markdown_py README.md -f README.html')
 
 
 @task
@@ -40,4 +45,4 @@ def upload(ctx):
 
 @task
 def all(ctx):
-    ctx.run('inv test build upload')
+    ctx.run('inv test build gen-readme upload')

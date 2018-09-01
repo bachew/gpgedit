@@ -104,6 +104,7 @@ class gpgedit(object):
                 else:
                     passphrase_ok = True
         else:
+            echo('New file {!r} will be created'.format(self.cipher_file))
             self.get_passphrase_file(confirm=2)
 
         self.last_modified = mtime(self.plain_file)
