@@ -49,7 +49,7 @@ def cli(editor, echo, change_passphrase, gpg_file):
         raise SystemExit(1)
 
 
-cli.help = 'GpgEdit {} lets you edit a gpg-encrypted file.'.format(VERSION)
+cli.help = 'GpgEdit (v{}) lets you edit a gpg-encrypted file.'.format(VERSION)
 
 
 class gpgedit(object):
@@ -235,7 +235,7 @@ def run(cmdlist):
 
 def decrypt(cipher_file, plain_file, passphrase_file):
     cmd = [
-        'gpg', '--yes',
+        'gpg', '--batch', '--yes',
         '--passphrase-file', passphrase_file,
         '-o', plain_file
     ]
@@ -249,7 +249,7 @@ def decrypt(cipher_file, plain_file, passphrase_file):
 
 def encrypt(plain_file, cipher_file, passphrase_file):
     cmd = [
-        'gpg', '--yes', '-a',
+        'gpg', '--batch', '--yes', '-a',
         '--cipher-algo', 'AES256',
         '-c',
         '--passphrase-file', passphrase_file,

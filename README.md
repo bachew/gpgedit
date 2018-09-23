@@ -38,7 +38,7 @@ New file 'tmp/x' will be created
 <b>kwrite '/dev/shm/x.op36kgx8/x'</b>
 ...
 <b>Encrypting '/dev/shm/x.op36kgx8/x' to 'tmp/x'
-gpg --yes -a --cipher-algo AES256 -c --passphrase-file /dev/shm/x.op36kgx8/passphrase.7zlszwz2 -o tmp/x /dev/shm/x.op36kgx8/x</b>
+gpg --batch --yes -a --cipher-algo AES256 -c --passphrase-file /dev/shm/x.op36kgx8/passphrase.7zlszwz2 -o tmp/x /dev/shm/x.op36kgx8/x</b>
 Reading passphrase from file descriptor 3
 <b>Saved 'tmp/x'</b>
 </pre>
@@ -49,14 +49,14 @@ To edit:
 $ gpgedit tmp/x
 <b>Enter passphrase:</b>
 <b>Decrypting 'tmp/x' to '/dev/shm/x.d059kzze/x'</b>
-gpg --yes --passphrase-file /dev/shm/x.d059kzze/passphrase.dsl_gwa6 -o /dev/shm/x.d059kzze/x tmp/x
+gpg --batch --yes --passphrase-file /dev/shm/x.d059kzze/passphrase.dsl_gwa6 -o /dev/shm/x.d059kzze/x tmp/x
 Reading passphrase from file descriptor 3
 gpg: AES256 encrypted data
 gpg: encrypted with 1 passphrase
 <b>kwrite '/dev/shm/x.d059kzze/x'</b>
 ...
 <b>Encrypting '/dev/shm/x.d059kzze/x' to 'tmp/x'</b>
-gpg --yes -a --cipher-algo AES256 -c --passphrase-file /dev/shm/x.d059kzze/passphrase.kbp9kerp -o tmp/x /dev/shm/x.d059kzze/x
+gpg --batch --yes -a --cipher-algo AES256 -c --passphrase-file /dev/shm/x.d059kzze/passphrase.kbp9kerp -o tmp/x /dev/shm/x.d059kzze/x
 Reading passphrase from file descriptor 3
 <b>Saved 'tmp/x'</b>
 kwrite(3077) KDirWatch::removeFile: doesn't know "/dev/shm/x.d059kzze/x"

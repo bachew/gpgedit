@@ -7,10 +7,12 @@ from setuptools import setup, find_packages
 proj_dir = osp.dirname(__file__)
 modules = [osp.splitext(osp.basename(path))[0]
            for path in glob(osp.join(proj_dir, 'src/*.py'))]
+desc = 'GpgEdit lets you edit a gpg-encrypted file'
 config = {
     'name': 'gpgedit',
-    'version': '0.0.6',
-    'description': 'GpgEdit lets you edit a gpg-encrypted file',
+    'version': '0.0.8',
+    'description': desc,
+    'long_description': desc,
     'license': 'MIT',
     'author': 'Chew Boon Aik',
     'author_email': 'bachew@gmail.com',
