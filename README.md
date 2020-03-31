@@ -2,7 +2,7 @@
 
 GpgEdit uses GnuPG to encrypt your secrets into a simple gpg file.
 
-<p style='background-color: #ffeead'>This repo is no longer maintained</p>
+**This repo is no longer maintained**
 
 ## Installation
 
